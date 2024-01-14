@@ -1,51 +1,57 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import streamlit as st
-from streamlit.logger import get_logger
+import numpy as np
+import onnxruntime as ort
+from PIL import Image
 
-LOGGER = get_logger(__name__)
+def load_model(model_path):
+    """ Load the ONNX model """
+    sess = ort.InferenceSession(model_path)
+    return sess
 
+def predict(sess, image):
+    """ Function to predict the class of an image using ONNX model """
+    image = np.array(image)
+    # Resize the image to match the input shape of the model
+    image = np.resize(image, (224, 224, 3))
+    image = image.astype('float32')
+    image /= 255.0
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
-    )
+    # No need to transpose the image since the model expects channels last
+    image = np.expand_dims(image, axis=0)  # Add batch dimension
 
-    st.write("# Welcome to Streamlit! 👋")
+    # Get the input name for the ONNX model
+    input_name = sess.get_inputs()[0].name
 
-    st.sidebar.success("Select a demo above.")
+    # Predict
+    preds = sess.run(None, {input_name: image})[0]
+    highest_prob_index = np.argmax(preds[0])
+    print(f"Array returned as {preds}")
+    return highest_prob_index
+    
+def main():
+    st.title("Image Classification with ONNX Model")
 
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
-    )
+    # Load ONNX model
+    model_path = 'model.onnx'  # Update this path
+    sess = load_model(model_path)
 
+    # Upload image
+    uploaded_image = st.sidebar.file_uploader("Upload image...", type=["jpg", "jpeg", "png"])
+    descriptions = ["Description for Disease 1", "Description for Disease 2", "Description for Disease 3", "Description for Disease 4"]
+    
+    if uploaded_image is not None:
+        image = Image.open(uploaded_image)
+        st.image(image, caption='Uploaded Image', width=200)
+        prediction=st.empty()
+        prediction.write("Classifying...")
+
+        # Make prediction
+        preds = predict(sess, image)
+        
+        # Show predictions
+        # Note: Update this part based on how you want to display the predictions
+        print(f"Got prediction as {preds}")
+        prediction.write(f"# AI analysis: \n## {descriptions[preds]}")
 
 if __name__ == "__main__":
-    run()
+    main()
