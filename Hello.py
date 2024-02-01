@@ -2,11 +2,47 @@ import streamlit as st
 import numpy as np
 import onnxruntime as ort
 from PIL import Image
+import tensorflow as tf
 
-def load_model(model_path):
+# Load your model
+@st.cache_resource
+def load_model_h5():
+    model = tf.keras.models.load_model('resnet_best_model.h5')
+    return model
+
+def load_model_onnx(model_path):
     """ Load the ONNX model """
     sess = ort.InferenceSession(model_path)
     return sess
+
+def main_h5():
+    model = load_model_h5()
+    st.title("Image Processing App")
+    # File uploader
+    uploaded_file = st.sidebar.file_uploader("Choose an image...", type="jpg")
+
+    if uploaded_file is not None:
+        # Display the image
+        image = Image.open(uploaded_file)
+        st.image(image, caption='Uploaded Image.', use_column_width=True)
+
+        # Process the image
+        # Note: The processing depends on your model requirements
+        processed_image = np.array(image.resize((224, 224))) / 255.0  # Example resize and scale
+        processed_image = np.expand_dims(processed_image, axis=0)  # Add batch dimension
+
+        # Make prediction or process image
+        output = model.predict(processed_image)
+
+        # Display the output
+        st.write("Processed Output:")
+        st.write(output)  # You might want to format this output
+        highest_prob_index = np.argmax(output[0])
+        print(f"Array returned as {output}")
+        st.write(f"Got prediction as {highest_prob_index}")
+
+
+
 
 def predict(sess, image):
     """ Function to predict the class of an image using ONNX model """
@@ -28,12 +64,12 @@ def predict(sess, image):
     print(f"Array returned as {preds}")
     return highest_prob_index
     
-def main():
+def main_onnx():
     st.title("Image Classification with ONNX Model")
 
     # Load ONNX model
     model_path = 'model.onnx'  # Update this path
-    sess = load_model(model_path)
+    sess = load_model_onnx(model_path)
 
     # Upload image
     uploaded_image = st.sidebar.file_uploader("Upload image...", type=["jpg", "jpeg", "png"])
@@ -54,4 +90,5 @@ def main():
         prediction.write(f"# AI analysis: \n## {descriptions[preds]}")
 
 if __name__ == "__main__":
-    main()
+    #main_onnx()
+    main_h5()
