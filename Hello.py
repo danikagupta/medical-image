@@ -4,6 +4,8 @@ import onnxruntime as ort
 from PIL import Image
 import tensorflow as tf
 
+PREDICTED_LABELS = ['0_normal', '1_ulcerative colitis', '2_polyps', '3_esophagitis']
+
 # Load your model
 @st.cache_resource
 def load_model_h5():
@@ -35,11 +37,12 @@ def main_h5():
         output = model.predict(processed_image)
 
         # Display the output
-        st.write("Processed Output:")
-        st.write(output)  # You might want to format this output
+        #st.write("Processed Output:")
+        #st.write(output)  # You might want to format this output
         highest_prob_index = np.argmax(output[0])
-        print(f"Array returned as {output}")
-        st.write(f"Got prediction as {highest_prob_index}")
+        forecast=PREDICTED_LABELS[highest_prob_index]
+        print(f"File {uploaded_file.name} predicts {forecast} for output {output}")
+        st.markdown(f"# Diagnosis: {forecast} \n# Confidence: {round(100*output[0][highest_prob_index])}%")
 
 
 
